@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>RITUAL 2025-2026 | 情绪转化仪式</title>
+    
+    <!-- 引入 Three.js 和 GSAP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <style>
+        /* --- 基础设定与字体 --- */
+        :root {
+            --c-text: #FFFFFF;
+            /* 浅色背景下的玻璃材质：更通透的白 */
+            --c-glass: rgba(255, 255, 255, 0.15);
+            --c-glass-border: rgba(255, 255, 255, 0.4);
+            --c-accent: #BAE6FD; /* 极浅蓝高亮 */
+            --c-shadow: rgba(0, 50, 100, 0.2); /* 蓝色投影 */
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0c4a6e; /* 备用背景色：深海蓝 */
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: var(--c-text);
+            user-select: none;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        /* --- UI 层级 --- */
+        #ui-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* --- 启动页 Overlay (鲜艳浅蓝) --- */
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* 从天蓝到深海蓝的明亮渐变 */
+            background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 1.5s ease;
+        }
+        
+        h1 {
+            font-weight: 300;
+            letter-spacing: 0.3em;
+            font-size: 2rem;
+            margin-bottom: 3rem;
+            opacity: 1;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .btn-start {
+            padding: 15px 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            color: #fff;
+            font-family: inherit;
+            letter-spacing: 0.1em;
+            font-size: 0.9rem;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+            border-radius: 30px;
+        }
+
+        .btn-start:hover {
+            background: #fff;
+            color: #0ea5e9;
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.6);
+        }
+
+        /* --- 场景 1：情绪标签 --- */
+        .emotion-tag {
+            position: absolute;
+            padding: 12px 24px;
+            background: rgba(255, 255, 255, 0.15); /* 更亮的半透明白 */
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 40px;
+            color: #fff;
+            font-weight: 500;
+            font-size: 0.95rem;
+            letter-spacing: 0.05em;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.2); /* 增加文字阴影以防背景太亮 */
+            cursor: grab;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+            transition: transform 0.1s;
+            will-change: transform, opacity;
+        }
+
+        .emotion-tag:active {
+            cursor: grabbing;
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+        }
+
+        /* --- 场景 3：新年寄语 --- */
+        #scene3-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 600px;
+            opacity: 0;
+        }
+
+        .input-wrapper {
+            width: 100%;
+            position: relative;
+        }
+
+        .year-title {
+            font-size: 1.5rem;
+            letter-spacing: 0.2em;
+            margin-bottom: 25px;
+            text-align: center;
+            color: #fff;
+            text-shadow: 0 0 15px rgba(186, 230, 253, 0.6);
+        }
+
+        textarea {
+            width: 100%;
+            height: 180px;
+            /* 浅色系的输入框背景 */
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 12px;
+            padding: 25px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 1.2rem;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+        }
+        
+        textarea::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        textarea:focus {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: #fff;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+        }
+
+        /* --- 音量控制 --- */
+        #volume-ctrl {
+            position: fixed;
+            top: 25px;
+            right: 25px;
+            z-index: 101;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+        #volume-ctrl:hover { opacity: 1; }
+        .bar {
+            background: #fff;
+            width: 3px;
+            position: absolute;
+            bottom: 0;
+            border-radius: 4px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- 视觉渲染层 -->
+    <div id="canvas-container"></div>
+
+    <!-- UI 交互层 -->
+    <div id="ui-layer">
+        <!-- Scene 3 容器 -->
+        <div id="scene3-container" class="interactive">
+            <div class="year-title">Dear 2026</div>
+            <div class="input-wrapper">
+                <textarea id="wish-input" placeholder="Write your hopes for 2026 here..."></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- 启动页 -->
+    <div id="overlay">
+        <h1>RITUAL 2025-2026</h1>
+        <button class="btn-start" id="start-btn">BEGIN</button>
+    </div>
+
+    <!-- 音量图标 -->
+    <div id="volume-ctrl" class="interactive">
+        <div class="bar" style="height: 30%; left: 5px;"></div>
+        <div class="bar" style="height: 60%; left: 13px;"></div>
+        <div class="bar" style="height: 100%; left: 21px;"></div>
+    </div>
+
+    <!-- 背景音乐：舒曼 - 梦幻曲 (Scene 3 使用) -->
+    <audio id="bgm-final" loop crossorigin="anonymous">
+        <source src="https://upload.wikimedia.org/wikipedia/commons/2/21/Schumann_-_Kinderszenen_-_07_-_Traumerei.ogg" type="audio/ogg">
+    </audio>
+
+    <script>
+        /**
+         * RITUAL 2025-2026
+         * Updated Color Scheme: Vivid Light Blue (Fresh, Hopeful, Clear)
+         */
+
+        // --- Configuration ---
+        const CONFIG = {
+            emotions: [
+                "Disappointment", "Confusion", "Anger", "Anxiety", 
+                "Pessimistic", "Disorganized", "Inefficient", 
+                "Deceitful", "Hypocritical", "Regret", "Fear", "Exhaustion"
+            ]
+            // Colors are handled in Shader for smoother mixing
+        };
+
+        // --- Global State ---
+        const state = {
+            scene: 0, 
+            volume: 0.8,
+            startTime: Date.now(),
+            ripples: []
+        };
+
+        // --- Audio Engine (Web Audio API) ---
+        class AudioEngine {
+            constructor() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.connect(this.ctx.destination);
+                this.masterGain.gain.value = state.volume;
+                
+                this.finalBGM = document.getElementById('bgm-final');
+                this.finalBGM.volume = 0;
+            }
+
+            resume() {
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+            }
+
+            startParticleMusic() {
+                // Higher pitch, more bell-like for the lighter theme
+                const notes = [440, 523.25, 659.25, 783.99, 880, 1046.50]; // A major / bright
+                
+                const playNote = () => {
+                    if (state.scene !== 1) return;
+                    
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    
+                    osc.frequency.value = notes[Math.floor(Math.random() * notes.length)];
+                    osc.type = 'sine';
+                    
+                    gain.gain.setValueAtTime(0, this.ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.08, this.ctx.currentTime + 0.1); // Lower volume for higher pitch
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 2.0);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.masterGain);
+                    
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 2.0);
+                    
+                    setTimeout(playNote, 200 + Math.random() * 600);
+                };
+                playNote();
+                playNote(); 
+            }
+
+            playSwoosh() {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                const filter = this.ctx.createBiquadFilter();
+
+                osc.type = 'sawtooth';
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(1200, this.ctx.currentTime); // Brighter swoosh
+                filter.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.6);
+
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.5);
+
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.masterGain);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.6);
+            }
+
+            playFlush() {
+                const bufferSize = this.ctx.sampleRate * 4; 
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1; 
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(1500, this.ctx.currentTime); // Airier flush
+                filter.frequency.exponentialRampToValueAtTime(50, this.ctx.currentTime + 3.5);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.4, this.ctx.currentTime + 0.2);
+                gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 4);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.masterGain);
+                
+                noise.start();
+            }
+
+            startTraumerei() {
+                this.finalBGM.play();
+                gsap.to(this.finalBGM, { volume: 0.6, duration: 5 });
+            }
+
+            toggleMute() {
+                state.volume = state.volume > 0 ? 0 : 0.8;
+                this.masterGain.gain.setTargetAtTime(state.volume, this.ctx.currentTime, 0.1);
+                this.finalBGM.volume = state.volume > 0 ? 0.6 : 0;
+            }
+        }
+
+        // --- WebGL / Shader System ---
+        class VisualSystem {
+            constructor() {
+                this.container = document.getElementById('canvas-container');
+                this.scene = new THREE.Scene();
+                this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+                this.renderer = new THREE.WebGLRenderer({ alpha: false, antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.container.appendChild(this.renderer.domElement);
+
+                this.initShader();
+                window.addEventListener('resize', this.onResize.bind(this));
+                this.animate();
+            }
+
+            initShader() {
+                const geometry = new THREE.PlaneGeometry(2, 2);
+                
+                // --- THE SHADER ART (COLOR UPDATE) ---
+                const fragmentShader = `
+                    uniform float uTime;
+                    uniform vec2 uResolution;
+                    uniform float uSceneMix; 
+                    uniform vec3 uRipplePos[10]; 
+                    
+                    varying vec2 vUv;
+
+                    // [Noise Functions Omitted for Brevity - Same as before]
+                    vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+                    vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+                    vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
+
+                    float snoise(vec2 v) {
+                        const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+                        vec2 i  = floor(v + dot(v, C.yy) );
+                        vec2 x0 = v -   i + dot(i, C.xx);
+                        vec2 i1;
+                        i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+                        vec4 x12 = x0.xyxy + C.xxzz;
+                        x12.xy -= i1;
+                        i = mod289(i);
+                        vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 )) + i.x + vec3(0.0, i1.x, 1.0 ));
+                        vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+                        m = m*m ;
+                        m = m*m ;
+                        vec3 x = 2.0 * fract(p * C.www) - 1.0;
+                        vec3 h = abs(x) - 0.5;
+                        vec3 ox = floor(x + 0.5);
+                        vec3 a0 = x - ox;
+                        m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+                        vec3 g;
+                        g.x  = a0.x  * x0.x  + h.x  * x0.y;
+                        g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+                        return 130.0 * dot(m, g);
+                    }
+
+                    float fbm(vec2 st) {
+                        float value = 0.0;
+                        float amplitude = .5;
+                        for (int i = 0; i < 5; i++) {
+                            value += amplitude * snoise(st);
+                            st *= 2.;
+                            amplitude *= .5;
+                        }
+                        return value;
+                    }
+
+                    void main() {
+                        vec2 uv = gl_FragCoord.xy / uResolution.xy;
+                        vec2 centeredUv = uv - 0.5;
+                        centeredUv.x *= uResolution.x / uResolution.y;
+
+                        // --- VORTEX STATE (Scene 1) ---
+                        // Colors updated to Vivid Blue / Electric Blue
+                        float dist = length(centeredUv);
+                        float angle = atan(centeredUv.y, centeredUv.x);
+                        
+                        float swirlStr = 3.0 + sin(uTime * 0.5);
+                        float twistedAngle = angle + swirlStr / (dist + 0.1) - uTime * 0.5; 
+                        
+                        float nVortex = snoise(vec2(cos(twistedAngle) * dist * 3.0, sin(twistedAngle) * dist * 3.0 - uTime));
+                        
+                        // Mix: Deep Blue Core -> Vivid Sky Blue Edge
+                        vec3 vortexColor = mix(
+                            vec3(0.0, 0.15, 0.4),  // Core: Deep Electric Blue (not black)
+                            vec3(0.0, 0.6, 0.9),   // Outer: Vivid Cyan/Blue
+                            smoothstep(0.0, 0.8, dist + nVortex * 0.2)
+                        );
+                        // Dark hole center (but slightly blue tinted)
+                        vortexColor *= smoothstep(0.05, 0.2, dist);
+
+                        // --- WATER STATE (Scene 3) ---
+                        // Colors updated to Calm Bright Blue
+                        vec2 waterUv = centeredUv * 3.0;
+                        float nWater = fbm(waterUv + uTime * 0.1);
+                        
+                        float totalRipple = 0.0;
+                        for(int i=0; i<10; i++){
+                            if(uRipplePos[i].z > 0.0){
+                                float age = uTime - uRipplePos[i].z;
+                                if(age < 2.0 && age > 0.0){
+                                    vec2 rPos = (uRipplePos[i].xy / uResolution.xy) - 0.5;
+                                    rPos.x *= uResolution.x / uResolution.y;
+                                    float d = length(centeredUv - rPos);
+                                    float ripple = sin(d * 40.0 - age * 10.0) * exp(-d * 4.0 - age * 2.0);
+                                    totalRipple += ripple;
+                                }
+                            }
+                        }
+
+                        // Water Colors: Vivid Blue -> Pale Cyan Highlight
+                        vec3 waterBase = vec3(0.0, 0.45, 0.85); // Vivid Azure
+                        vec3 waterLight = vec3(0.65, 0.92, 1.0);   // Pale Cyan/White
+
+                        float mixVal = nWater + totalRipple * 0.5;
+                        vec3 waterColor = mix(waterBase, waterLight, smoothstep(0.3, 0.7, mixVal));
+
+                        // --- TRANSITION MIX ---
+                        vec3 finalColor = mix(vortexColor, waterColor, uSceneMix);
+                        
+                        // Vignette (lighter, blueish)
+                        finalColor *= 1.0 - smoothstep(0.6, 1.8, length(centeredUv)) * 0.5;
+
+                        gl_FragColor = vec4(finalColor, 1.0);
+                    }
+                `;
+
+                this.uniforms = {
+                    uTime: { value: 0 },
+                    uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+                    uSceneMix: { value: 0.0 },
+                    uRipplePos: { value: new Array(10).fill(new THREE.Vector3(0,0,0)) }
+                };
+
+                const material = new THREE.ShaderMaterial({
+                    uniforms: this.uniforms,
+                    vertexShader: `
+                        varying vec2 vUv;
+                        void main() {
+                            vUv = uv;
+                            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                        }
+                    `,
+                    fragmentShader: fragmentShader
+                });
+
+                const mesh = new THREE.Mesh(geometry, material);
+                this.scene.add(mesh);
+            }
+
+            updateRipples(ripples) {
+                for(let i=0; i<10; i++) {
+                    if (ripples[i]) {
+                        this.uniforms.uRipplePos.value[i].set(ripples[i].x, ripples[i].y, ripples[i].time);
+                    } else {
+                        this.uniforms.uRipplePos.value[i].set(0,0,-1);
+                    }
+                }
+            }
+
+            transitionToWater() {
+                gsap.to(this.uniforms.uSceneMix, {
+                    value: 1.0,
+                    duration: 4,
+                    ease: "power2.inOut"
+                });
+            }
+
+            onResize() {
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.uniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
+            }
+
+            animate() {
+                requestAnimationFrame(this.animate.bind(this));
+                this.uniforms.uTime.value = (Date.now() - state.startTime) / 1000;
+                
+                const now = (Date.now() - state.startTime) / 1000;
+                state.ripples = state.ripples.filter(r => now - r.time < 2.0);
+                this.updateRipples(state.ripples);
+
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        // --- Interaction Logic ---
+        class RitualManager {
+            constructor(audio, visuals) {
+                this.audio = audio;
+                this.visuals = visuals;
+                this.uiLayer = document.getElementById('ui-layer');
+                this.remainingEmotions = 0;
+                
+                this.bindEvents();
+            }
+
+            bindEvents() {
+                document.getElementById('start-btn').addEventListener('click', () => this.startRitual());
+                document.getElementById('volume-ctrl').addEventListener('click', () => this.audio.toggleMute());
+                
+                const input = document.getElementById('wish-input');
+                input.addEventListener('input', (e) => {
+                    const cx = window.innerWidth / 2;
+                    const cy = window.innerHeight / 2;
+                    const range = 100;
+                    this.addRipple(
+                        cx + (Math.random() * range - range/2), 
+                        window.innerHeight - (cy + (Math.random() * range - range/2))
+                    );
+                    localStorage.setItem('ritual_2026_note', e.target.value);
+                });
+            }
+
+            startRitual() {
+                this.audio.resume();
+                
+                const overlay = document.getElementById('overlay');
+                overlay.style.opacity = '0';
+                setTimeout(() => overlay.remove(), 1500);
+
+                state.scene = 1;
+                this.audio.startParticleMusic();
+                this.spawnEmotions();
+            }
+
+            spawnEmotions() {
+                CONFIG.emotions.forEach(text => {
+                    const el = document.createElement('div');
+                    el.className = 'emotion-tag interactive';
+                    el.innerText = text;
+                    
+                    const x = Math.random() * (window.innerWidth - 100);
+                    const y = Math.random() * (window.innerHeight - 100);
+                    
+                    const dx = x - window.innerWidth/2;
+                    const dy = y - window.innerHeight/2;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if(dist < 150) return; 
+
+                    el.style.left = `${x}px`;
+                    el.style.top = `${y}px`;
+                    
+                    this.uiLayer.appendChild(el);
+                    this.makeDraggable(el);
+                    this.remainingEmotions++;
+                });
+            }
+
+            makeDraggable(el) {
+                let isDragging = false;
+                let offsetX, offsetY;
+
+                const onDown = (e) => {
+                    isDragging = true;
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    
+                    const rect = el.getBoundingClientRect();
+                    offsetX = clientX - rect.left;
+                    offsetY = clientY - rect.top;
+                    
+                    el.style.zIndex = 1000;
+                };
+
+                const onMove = (e) => {
+                    if (!isDragging) return;
+                    e.preventDefault(); 
+                    
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                    let x = clientX - offsetX;
+                    let y = clientY - offsetY;
+
+                    el.style.left = `${x}px`;
+                    el.style.top = `${y}px`;
+
+                    const cx = window.innerWidth / 2;
+                    const cy = window.innerHeight / 2;
+                    const elCx = x + el.offsetWidth/2;
+                    const elCy = y + el.offsetHeight/2;
+
+                    const dist = Math.hypot(cx - elCx, cy - elCy);
+
+                    if (dist < 100) {
+                        isDragging = false;
+                        this.consumeEmotion(el);
+                    }
+                };
+
+                const onUp = () => {
+                    isDragging = false;
+                    el.style.zIndex = '';
+                };
+
+                el.addEventListener('mousedown', onDown);
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+
+                el.addEventListener('touchstart', onDown, {passive: false});
+                document.addEventListener('touchmove', onMove, {passive: false});
+                document.addEventListener('touchend', onUp);
+            }
+
+            consumeEmotion(el) {
+                const clone = el.cloneNode(true);
+                el.parentNode.replaceChild(clone, el);
+                
+                this.audio.playSwoosh();
+
+                gsap.to(clone, {
+                    duration: 0.6,
+                    left: window.innerWidth / 2 - clone.offsetWidth / 2,
+                    top: window.innerHeight / 2 - clone.offsetHeight / 2,
+                    scale: 0,
+                    rotation: 720,
+                    opacity: 0,
+                    ease: "back.in(1.7)",
+                    onComplete: () => {
+                        clone.remove();
+                        this.remainingEmotions--;
+                        if (this.remainingEmotions === 0) {
+                            this.triggerTransition();
+                        }
+                    }
+                });
+            }
+
+            triggerTransition() {
+                state.scene = 2;
+                
+                this.audio.playFlush();
+                this.visuals.transitionToWater();
+
+                setTimeout(() => {
+                    this.startScene3();
+                }, 4000);
+            }
+
+            startScene3() {
+                state.scene = 3;
+                
+                const container = document.getElementById('scene3-container');
+                container.style.display = 'flex';
+                
+                gsap.to(container, { opacity: 1, duration: 2, delay: 0.5 });
+                
+                this.audio.startTraumerei();
+
+                document.addEventListener('pointerdown', (e) => {
+                    if(state.scene === 3 && e.target.id !== 'wish-input') {
+                        this.addRipple(e.clientX, window.innerHeight - e.clientY);
+                    }
+                });
+            }
+
+            addRipple(x, y) {
+                const now = (Date.now() - state.startTime) / 1000;
+                state.ripples.unshift({x, y, time: now});
+                if (state.ripples.length > 10) state.ripples.pop();
+            }
+        }
+
+        window.addEventListener('load', () => {
+            const audioEngine = new AudioEngine();
+            const visualSystem = new VisualSystem();
+            const ritual = new RitualManager(audioEngine, visualSystem);
+            
+            const savedNote = localStorage.getItem('ritual_2026_note');
+            if(savedNote) document.getElementById('wish-input').value = savedNote;
+        });
+
+    </script>
+</body>
+</html>
